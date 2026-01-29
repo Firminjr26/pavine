@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>For Pavine 💕</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Space+Grotesk:wght@300;400;500;600;700&family=Courier+Prime&display=swap" rel="stylesheet">
+    <!-- QR Code Library - Using qrcode-generator (better compatibility) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1039,10 +1041,32 @@
             box-shadow: 0 15px 50px rgba(29, 185, 84, 0.2);
         }
 
-        .success-info h3 {
+        body.light-theme .success-info h3 {
             color: var(--primary);
             margin-bottom: 15px;
             font-size: 1.2rem;
+        }
+
+        body.light-theme #shareable-link {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: var(--primary);
+            color: #1a1a1a;
+        }
+
+        /* QR Code Styles */
+        #qrcode, #notification-qrcode {
+            line-height: 0;
+        }
+        
+        #qrcode img, #notification-qrcode img {
+            display: block !important;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+
+        #qrcode canvas, #notification-qrcode canvas {
+            display: none !important;
         }
 
         .success-info p {
@@ -1232,7 +1256,7 @@
                     <p class="playlist-meta">PLAYLIST</p>
                     <h1>PAVINE</h1>
                     <p class="playlist-meta">For Pavine • 2026</p>
-                    <p class="playlist-stats">5 scenarios • 1 special question</p>
+                    <p class="playlist-stats">5 scenario • 1 special question</p>
                     <button class="play-button" onclick="startPlaylist()">
                         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     </button>
@@ -1445,6 +1469,33 @@
                 <h3>✨ Response Captured!</h3>
                 <p>Her answer has been saved. Time: <span id="response-time"></span></p>
                 <p style="margin-top: 10px;">This moment will be remembered forever! 💖</p>
+                
+                <!-- Shareable Link Section -->
+                <div id="share-section" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(29, 185, 84, 0.3); display: none;">
+                    <h4 style="color: var(--primary); font-size: 1rem; margin-bottom: 10px;">📤 Share Your Response</h4>
+                    <p style="font-size: 0.85rem; margin-bottom: 15px;">Screenshot this QR code and send it, or copy the link below:</p>
+                    
+                    <!-- QR Code -->
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div id="qrcode" style="display: inline-block; padding: 15px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"></div>
+                        <p style="font-size: 0.75rem; margin-top: 10px; opacity: 0.8;">📸 Screenshot and send this QR code!</p>
+                    </div>
+                    
+                    <!-- Link Option -->
+                    <p style="font-size: 0.85rem; margin-bottom: 10px; opacity: 0.9;">Or copy this link:</p>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="shareable-link" readonly 
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 2px solid var(--primary); 
+                            background: var(--dark-elevated); color: var(--text-primary); font-size: 0.85rem;"
+                            onclick="this.select();">
+                        <button onclick="copyShareableLink()" 
+                            style="padding: 10px 20px; border-radius: 8px; border: none; 
+                            background: var(--primary); color: white; cursor: pointer; font-weight: 600;">
+                            Copy
+                        </button>
+                    </div>
+                    <p style="font-size: 0.75rem; margin-top: 8px; opacity: 0.7;">Scan the QR code or open the link to see the response! 💕</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1556,6 +1607,9 @@
         window.addEventListener('load', () => {
             loadTheme();
             
+            // Check for URL parameters first
+            checkUrlParameters();
+            
             setTimeout(() => {
                 document.getElementById('loading').classList.add('fade-out');
                 setTimeout(() => {
@@ -1566,6 +1620,133 @@
             // Check for existing response
             checkExistingResponse();
         });
+
+        // Generate shareable URL with response
+        function generateShareableUrl(answer) {
+            const timestamp = new Date().toISOString();
+            const date = new Date().toLocaleString();
+            const baseUrl = window.location.href.split('?')[0]; // Remove existing params
+            const params = new URLSearchParams({
+                response: answer,
+                timestamp: timestamp,
+                date: date
+            });
+            return `${baseUrl}?${params.toString()}`;
+        }
+
+        // Check URL parameters on page load
+        function checkUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const response = urlParams.get('response');
+            const timestamp = urlParams.get('timestamp');
+            const date = urlParams.get('date');
+            
+            if (response && timestamp) {
+                // Save to localStorage
+                const responseData = {
+                    answer: response,
+                    timestamp: timestamp,
+                    date: date || new Date(timestamp).toLocaleString()
+                };
+                localStorage.setItem('pavine_valentine_response', JSON.stringify(responseData));
+                
+                // Show notification immediately
+                setTimeout(() => {
+                    showNotification(response);
+                }, 2500);
+            }
+        }
+
+        // Show shareable URL in notification
+        function showShareUrlInNotification(url) {
+            const notification = document.getElementById('response-notification');
+            const message = document.getElementById('notification-message');
+            
+            message.innerHTML = `
+                Response saved! Share this link:<br>
+                <input type="text" value="${url}" 
+                    style="width: 100%; padding: 8px; margin-top: 10px; border-radius: 4px; 
+                    border: 1px solid var(--accent-pink); background: var(--dark-elevated); 
+                    color: var(--text-primary); font-size: 0.8rem;" 
+                    onclick="this.select(); document.execCommand('copy');" 
+                    readonly>
+                <small style="display: block; margin-top: 5px; opacity: 0.7;">Click to copy</small>
+            `;
+        }
+
+        // Show share options (QR code + link) in notification
+        function showShareOptionsInNotification(url) {
+            const notification = document.getElementById('response-notification');
+            const message = document.getElementById('notification-message');
+            
+            message.innerHTML = `
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div id="notification-qrcode" style="display: inline-block; padding: 10px; background: white; border-radius: 8px;"></div>
+                    <p style="font-size: 0.7rem; margin-top: 8px; opacity: 0.8;">📸 Screenshot this QR code!</p>
+                </div>
+                <p style="font-size: 0.8rem; margin-bottom: 8px;">Or copy the link:</p>
+                <input type="text" value="${url}" 
+                    style="width: 100%; padding: 8px; border-radius: 4px; 
+                    border: 1px solid var(--accent-pink); background: var(--dark-elevated); 
+                    color: var(--text-primary); font-size: 0.75rem;" 
+                    onclick="this.select(); document.execCommand('copy');" 
+                    readonly>
+                <small style="display: block; margin-top: 5px; opacity: 0.7;">Click link to copy</small>
+            `;
+            
+            // Generate QR code in notification
+            setTimeout(() => {
+                generateNotificationQRCode(url);
+            }, 100);
+        }
+
+        // Generate QR Code using qrcode-generator library
+        function generateQRCode(url) {
+            const qrcodeContainer = document.getElementById('qrcode');
+            if (qrcodeContainer && typeof qrcode !== 'undefined') {
+                qrcodeContainer.innerHTML = ''; // Clear previous QR code
+                
+                // Create QR code
+                var qr = qrcode(0, 'H'); // type 0 = auto, error correction level H
+                qr.addData(url);
+                qr.make();
+                
+                // Create image with proper size
+                var img = document.createElement('img');
+                img.src = qr.createDataURL(8, 0); // cell size 8, margin 0
+                img.style.width = '200px';
+                img.style.height = '200px';
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                
+                qrcodeContainer.appendChild(img);
+            } else {
+                console.error('QRCode library not loaded or container not found');
+            }
+        }
+
+        // Generate QR Code for notification
+        function generateNotificationQRCode(url) {
+            const qrcodeContainer = document.getElementById('notification-qrcode');
+            if (qrcodeContainer && typeof qrcode !== 'undefined') {
+                qrcodeContainer.innerHTML = ''; // Clear previous QR code
+                
+                // Create QR code
+                var qr = qrcode(0, 'H');
+                qr.addData(url);
+                qr.make();
+                
+                // Create image with proper size
+                var img = document.createElement('img');
+                img.src = qr.createDataURL(6, 0); // smaller cell size for notification
+                img.style.width = '150px';
+                img.style.height = '150px';
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                
+                qrcodeContainer.appendChild(img);
+            }
+        }
 
         // Check for existing response - SHOW TO YOU TOO
         function checkExistingResponse() {
@@ -1759,7 +1940,16 @@ So I have one simple question to ask...`;
                         attempts: noClickCount
                     };
                     localStorage.setItem('pavine_valentine_response', JSON.stringify(response));
+                    
+                    // Generate shareable URL
+                    const shareableUrl = generateShareableUrl('no');
+                    
                     showNotification('no');
+                    
+                    // Show QR code and share URL in notification after a delay
+                    setTimeout(() => {
+                        showShareOptionsInNotification(shareableUrl);
+                    }, 2000);
                 }
                 
                 if (noClickCount > 3) {
@@ -1785,11 +1975,22 @@ So I have one simple question to ask...`;
             
             localStorage.setItem('pavine_valentine_response', JSON.stringify(response));
             
+            // Generate shareable URL
+            const shareableUrl = generateShareableUrl('yes');
+            
             // Show notification - VISIBLE TO BOTH PARTIES
             showNotification('yes');
             
-            // Show success screen
+            // Show success screen with shareable link and QR code
             document.getElementById('response-time').textContent = response.date;
+            document.getElementById('shareable-link').value = shareableUrl;
+            document.getElementById('share-section').style.display = 'block';
+            
+            // Generate QR Code
+            setTimeout(() => {
+                generateQRCode(shareableUrl);
+            }, 100);
+            
             nextExperience('success-experience');
             
             // Create confetti
@@ -1812,6 +2013,28 @@ So I have one simple question to ask...`;
                     
                     setTimeout(() => confetti.remove(), 3000);
                 }, i * 30);
+            }
+        }
+
+        // Copy shareable link to clipboard
+        function copyShareableLink() {
+            const linkInput = document.getElementById('shareable-link');
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999); // For mobile devices
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(linkInput.value).then(() => {
+                    alert('✅ Link copied! Send this to see the notification when you open it.');
+                }).catch(() => {
+                    // Fallback to execCommand
+                    document.execCommand('copy');
+                    alert('✅ Link copied! Send this to see the notification when you open it.');
+                });
+            } else {
+                // Fallback for older browsers
+                document.execCommand('copy');
+                alert('✅ Link copied! Send this to see the notification when you open it.');
             }
         }
     </script>
